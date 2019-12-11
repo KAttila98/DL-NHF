@@ -7,7 +7,7 @@
 % to avoid loading the natbib package, add option nonatbib:
 % \usepackage[nonatbib]{nips_2016}
 
-
+%\usepackage{nips_2016}
 
 % to compile a camera-ready version, add the [final] option, e.g.:
 % \usepackage[final]{nips_2016}
@@ -20,8 +20,11 @@
 \usepackage{amsfonts}       % blackboard math symbols
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
+\usepackage{t1enc}
+\usepackage{graphicx}
+\graphicspath{{./figs/}}
 
-\title{Formatting instructions for NIPS 2016}
+\title{Music generation using Deep Learning}
 
 % The \author macro works with any number of authors. There are two
 % commands used to separate the names and addresses of multiple
@@ -34,13 +37,11 @@
 % author name.
 
 \author{
-  David S.~Hippocampus\thanks{Use footnote for providing further
-    information about author (webpage, alternative
-    address)---\emph{not} for acknowledging funding agencies.} \\
-  Department of Computer Science\\
-  Cranberry-Lemon University\\
-  Pittsburgh, PA 15213 \\
-  \texttt{hippo@cs.cranberry-lemon.edu} \\
+  Gábor L.\\
+  Department of Computer Engineering\\
+  Budapest University of Technology and Economics\\
+  Budapest, \\
+  \texttt{lant.gabor98@gmail.com} \\
   %% examples of more authors
   %% \And
   %% Coauthor \\
@@ -70,13 +71,45 @@
 \maketitle
 
 \begin{abstract}
-  The abstract paragraph should be indented \nicefrac{1}{2}~inch
-  (3~picas) on both the left- and right-hand margins. Use 10~point
-  type, with a vertical spacing (leading) of 11~points.  The word
-  \textbf{Abstract} must be centered, bold, and in point size 12. Two
-  line spaces precede the abstract. The abstract must be limited to
-  one paragraph.
+  In this paper we try to demonstrate how we can generate music using neural networks from sound files converted to images. The goal is to compare the performance of different types of neural networks and also different types of music to image conversions and how they affect the generated output.
 \end{abstract}
+
+\section{Problem summary}
+\label{sec:summary}
+Our idea was to convert our music data into pictures and then use some kind of neural network to produce similar pictures. Then we would convert our generated images back to music format and rate the quality. Originally we hoped we could use different styles of music to use as an input for our model and then it would generate a similar music but in a different style, but later we found this to be much more difficult. We will discuss this later in section~\ref{}.
+
+\section{Data acquisition, description}
+\label{sec:data}
+For our data-set we had two criteria in mind: we needed .midi files and we wanted to use tracks similar to each other in style. The .midi files allow us to work with large data-sets (25- 100GB as uncompressed .wav files) without actually having to store them as .wavs thus taking up only minimal storage capacity (not counting the preprocessed files). Them being similar in style is not necessary, however we thought that it would be best for our first approach to only consider tracks from the same style. Luckily we found a well-made data-set called Magenta: Maestro~\cite{maestro}, that satisfies all our needs. Maestro is a dataset composed of over 200 hours of virtuosic piano performances.
+
+\section{Data exploration}
+\label{sec:exploration}
+Our data has the following main features:
+\begin{itemize}
+	\item Time: Absolute time, in terms of MIDI clocks, at which this event occurs. Meta-events
+	for which time is not meaningful (for example, song title, copyright information, etc.)
+	have an absolute time of 0.
+	\item Type/Event: Name identifying the type of the record. Record types are text consisting
+	of upper and lower case letters and the underscore (``\_''), contain no embedded
+	spaces, and are not enclosed in quotes.
+	\item Channel: The channel identifier.
+	\item Note: The currently played note (integer 21-109, a piano has 88 keys)
+	\item Velocity: The matching note’s volume at the moment.
+\end{itemize}
+Further details at midicsv’s website~\footnote{MIDICSV: Convert MIDI File to and from CSV - Fourmilab. \url{https://www.fourmilab.ch/webtools/midicsv/}}
+
+\section{Data preprocessing}
+Here we only explain the main steps and ideas of our preprocessing, because we include a well-commented source code, that produces our actual training (70\%), validation (20\%) and test (10\%) data.
+First we read the .midi files and transform them to only contain the relevant informations we need (notes length, instrument type, tempo, volume), then we transform them into 10 sec long parts (if the music is not a multiple of 10 sec long, then we ``add silence'' to the end). The fixed time long parts can then be transformed into pictures, where the RGBA channels are the notes length, the instrument type, the tempo and the volume respectively. The pixels height indicates the note itself.
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=\linewidth]{encode1.png}
+	\caption{Sample figure caption.}
+	\label{fig:encoded-1}
+\end{figure}
+In our first approach this will be the way we process the data, but we would like to note here, that we are thinking about different approaches as well. Another promising way can be the usage of Hilbert’s curves. In a nuttshell: Hilbert’s curves~\cite{hilbert} is a way to map the 1D-like spectrogram to a 2D picture, in such way, that the notes close to each other on the spectrogram will also be close on the 2D picture. This approach might work better with convolutional networks since the small matrices, parsing the picture can actually extract features that correlates more.
+
+\section{folyt}
 
 \section{Submission of papers to NIPS 2016}
 
@@ -389,18 +422,15 @@ size to \verb+small+ (9 point) when listing the references. {\bf
 
 \small
 
-[1] Alexander, J.A.\ \& Mozer, M.C.\ (1995) Template-based algorithms
-for connectionist rule extraction. In G.\ Tesauro, D.S.\ Touretzky and
-T.K.\ Leen (eds.), {\it Advances in Neural Information Processing
-  Systems 7}, pp.\ 609--616. Cambridge, MA: MIT Press.
-
-[2] Bower, J.M.\ \& Beeman, D.\ (1995) {\it The Book of GENESIS:
-  Exploring Realistic Neural Models with the GEneral NEural SImulation
-  System.}  New York: TELOS/Springer--Verlag.
-
-[3] Hasselmo, M.E., Schnell, E.\ \& Barkai, E.\ (1995) Dynamics of
-learning and recall at excitatory recurrent synapses and cholinergic
-modulation in rat hippocampal region CA3. {\it Journal of
-  Neuroscience} {\bf 15}(7):5249-5262.
+\begin{thebibliography}{9}
+	\label{sec:bibliography}
+	
+	\bibitem{maestro} Curtis Hawthorne, Andriy Stasyuk, Adam Roberts, Ian Simon, Cheng-Zhi Anna Huang,
+	Sander Dieleman, Erich Elsen, Jesse Engel, and Douglas Eck. \emph{Enabling
+		Factorized Piano Music Modeling and Generation with the MAESTRO Dataset.}, \url{https://arxiv.org/abs/1810.12247} In International Conference on Learning Representations, 2019. 
+	
+	\bibitem{hilbert} Grant Sanderson (3Blue1Brown), \emph{Hilbert's Curve: Is infinite math useful?}, \url{https://www.youtube.com/watch?v=3s7h2MHQtxc}
+	
+\end{thebibliography}
 
 \end{document}
