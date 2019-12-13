@@ -190,7 +190,36 @@ As we mentioned we used midi files collected in the MAESTRO dataset, but to wide
 	\item \textbf{Adding noise to music: } In the real life it is also possible that a musician makes mistakes while playing ( for example playes the wrong notes ). So therefore we also added a Gaussian noise to a few notes in the music. The expected value of the noise is 0 and the standard deviation is 1 (actually the noise is a standard normal distribution). We moved the note along the y axis by the integer value of the noise added to it.
 \end{itemize}
 
-\section{folyt}
+\section{Network Architectures}
+\label{sec:networksarch}
+
+\subsection{Generative Adversarial Network (GAN)}
+\label{sec;gan}
+
+In our first attempt to generate music using images we tried to use some type of GAN network. This type of architechture uses 2 neural nets to work against each other in an adversarial manner. The first network is the generator takes noise as input and tries to generate a new image from it. The second network is the discriminator. The discriminators job is to learn the dataset and try to differentiate between the generated and the real images. Using the discriminators output as a metric for the generator to become better. The 2 networks should be trained after one another but not simultaneously. Since these networks take a long time to train and optimize we choose an off the shelf model. We used the GAN models found in Erik Linder-Norén's repository~\cite{} as reference. 
+\subsubsection{Different GAN approaches.}
+We tried to use the simple GAN model with the dataset mentioned in section~\ref{sec:data}. We didn't have much luck with this, the architechture seemed too simple to learn from our sparse dataset. Also this type of GAN is using Dense layers in the generator network, wich is not optimal to learn the structure of an image. The output was mostly noise with not much resemblance to the original dataset. 
+\begin{figure}[!htb]
+	\centering
+	\caption{GAN generated output}
+	\label{fig:gan}
+\end{figure}
+\section{DCGAN}
+To compensate for the first models problems we settled on the DCGAN variant of the network. This type uses Deep Convolutional layers for both the generator and the discrimintator network. The idea was that convolution layers use a matrix of pixels as an input and it can learn the structure of an image much better. During the training this technique did work, however the generated outputs background was mostly gray and our images had black background. This made the discriminators job too easy and the loss didn't really converge to the expected values.
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\linewidth]{dcgan.png}
+	\caption{DCGAN generated output.}
+	\label{fig:dcgan}
+\end{figure}
+\section{WGAN GF}
+The third approach was using WGAN GF found in paper~\cite{}. This uses a different method to calculate the error made by the generator network. This method seemed the most promising as the generated output started to look like the expected from around 2000 epochs. We let the network overfit our dataset so it would be as close to the original as possible. The output of the network can be seen in figure~\ref{fig:wgangf}.
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\linewidth]{wgangf.png}
+	\caption{WGAN GF generated output.}
+	\label{fig:wgangf}
+\end{figure}
 
 \section{Submission of papers to NIPS 2016}
 
