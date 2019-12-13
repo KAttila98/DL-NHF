@@ -18,10 +18,12 @@
 \usepackage{url}            % simple URL typesetting
 \usepackage{booktabs}       % professional-quality tables
 \usepackage{amsfonts}       % blackboard math symbols
+\usepackage{amsmath}
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
 \usepackage{t1enc}
 \usepackage{graphicx}
+
 \graphicspath{{./figs/}}
 
 \title{Music generation using Deep Learning}
@@ -112,14 +114,81 @@ Further details at midicsv’s website~\footnote{MIDICSV: Convert MIDI File to a
 
 \section{Data preprocessing}
 Here we only explain the main steps and ideas of our preprocessing, because we include a well-commented source code, that produces our actual training (70\%), validation (20\%) and test (10\%) data.
-First we read the .midi files and transform them to only contain the relevant informations we need (notes length, instrument type, tempo, volume), then we transform them into 10 sec long parts (if the music is not a multiple of 10 sec long, then we ``add silence'' to the end). The fixed time long parts can then be transformed into pictures, where the RGBA channels are the notes length, the instrument type, the tempo and the volume respectively. The pixels height indicates the note itself.
-\begin{figure}[h]
-	\centering
-	\includegraphics[width=\linewidth]{encode1.png}
-	\caption{Sample figure caption.}
-	\label{fig:encoded-1}
-\end{figure}
+
+\subsection{First approach - using the midi files}
+	\subsubsection{Encoding}
+	We used a python package called \textbf{MidiFile} to process the midi files in the following way:
+	\begin{enumerate}
+		\item With the constructor of \textbf{Midifile} we can read a specific .midi file and get all the MIDI event messages presented in it. 
+		\item From the aquired event messages we built a pandas dataframe which made data handling easier. The structure of the dataframe can be seen on figure \ref{fig:dframe}
+		
+		\begin{figure}[!htb]
+			\centering
+			\includegraphics[width=\linewidth]{dframe.png}
+			\caption{Pandas dataframe containing midi events.}
+			\label{fig:dframe}
+		\end{figure}
+		\item The time\_elapsed column contains the same Time value as it is in the original .midi file. This column will help us to determine the starting and ending pixel of the note appearing on the generated image.
+		\item We created image files, where the pitch is representsand on the y axis and the time on the x axis (we created images with size of 88x200 pixels storing approximatelly 10 seconds long pieces of music). We used three different coding methods to compare their performance: 
+		\begin{itemize}
+			\item In the first method we used all the 4 channels of a pixel to store different infromations about every note: its length, velocity, which instrument played that note and finally the current tempo. An example of this encoding can be seen on figure \ref{fig:encoded-1}. This encoding is very rare, since only the starting of notes are presented on these images, because the length of each note is stored in R channel. 
+			\begin{figure}[!htb]
+				\centering
+				\includegraphics[width=\linewidth]{encode1.png}
+				\caption{Encoding number 1.}
+				\label{fig:encoded-1}
+			\end{figure}
+			\item The second method is very similar to the one presented above, one difference is that this encoding uses only 3 channels, because we observed that in our dataset the Tempo value is equal in every part of each song so it is not necessary to store that feature. Also in this encoding we don't store the length of notes, the value of R channel is either 125 (which means the beginning of a given note) or 255 (means that a note is sustained). So in this encoding the whole time intervall is painted where a given note is played. An example of this encoding can be seen on figure \ref{fig:encoded-2}. The index of pixels between the note shuld be painted can be determined as follows: 
+				\begin{gather}
+					starting\_time = tempo\times\frac{\frac{t_0}{division}}{100000} seconds \\ \nonumber
+					starting\_pixel = starting\_time \times pixel\_sec \\ \nonumber
+					ending\_time = tempo\times\frac{\frac{t_1}{division}}{100000} seconds \\ \nonumber
+					ending\_pixel = ending\_time \times pixel\_sec, \\ \nonumber \text{where pixel\_sec is the time value corresponding to 1 pixel (it is 0.05 sec in our encoding)}
+				\end{gather}
+				\begin{figure}[!htb]
+					\centering
+					\includegraphics[width=\linewidth]{encode2.png}
+					\caption{Encoding number 2.}
+					\label{fig:encoded-2}
+				\end{figure}
+			\item The third encoding is a one-channeled version of the second one, where we doesn't store the velocity and instrument. This encoding was made only for testing the architecture with smaller dimensional inputs. This encoding is presented on figure \ref{fig:encoded-3}
+				\begin{figure}[!htb]
+					\centering
+					\includegraphics[width=\linewidth]{encode3.png}
+					\caption{Encoding number 3.}
+					\label{fig:encoded-3}
+				\end{figure}
+		\end{itemize}
+	\end{enumerate}
+	
+	The code for the first encoding method can be found in \textbf{note2img.ipynb} notebook file, while the code for the second and third method can be found in \textbf{Midi2Img.ipynb} notebook file.
+	\subsubsection{Decoding}
+	
+	After generating images with different Deep learning architectures it was necessary to create .midi files from the generated images. For this purpose we used two python packages: \textbf{Midifile} and \textbf{midiutil}. The pitch is represented on the y axis, and the duration of the note can be computed from the x axis in the following way: 
+	
+		\begin{gather}
+		starting\_time = \frac{1000000 \times pixel\_sec \times staring\_pixel \times division}{tempo})) \\
+		duration = \frac{1000000 \times length \times division}{tempo})), \\
+		\text{where division is the same division which can be found in the MIDI header message} \nonumber
+		\end{gather}
+	
+	Using the  \textbf{midifile.addNote(track, channel, note, time, duration, velocity)} function we could add notes easily to our midi files. \\ 
+	
+	The python code for the decoder can be found in \textbf{ImgToMidi.ipynb} notebook.
+	
+
+\subsection{Second approach - Hilbert's Curves}
+
 In our first approach this will be the way we process the data, but we would like to note here, that we are thinking about different approaches as well. Another promising way can be the usage of Hilbert’s curves. In a nuttshell: Hilbert’s curves~\cite{hilbert} is a way to map the 1D-like spectrogram to a 2D picture, in such way, that the notes close to each other on the spectrogram will also be close on the 2D picture. This approach might work better with convolutional networks since the small matrices, parsing the picture can actually extract features that correlates more.
+
+\subsection{Data augmentaion - MIDI approach}
+
+As we mentioned we used midi files collected in the MAESTRO dataset, but to widen our datas at our disposal we considered using two types of data augmentation methods: 
+\begin{itemize}
+	\item \textbf{Transposing music: } Before generating images from audio files we used an instrument called MIDICSV~\footnote{MIDICSV: Convert MIDI File to and from CSV - Fourmilab. \url{https://www.fourmilab.ch/webtools/midicsv/}}, which beside converting midi files to csv can also transpose music (shifting the whole melody to another key). So we could produce different (shifted along $Y$ axis) images from the same MIDI file.
+	
+	\item \textbf{Adding noise to music: } In the real life it is also possible that a musician makes mistakes while playing ( for example playes the wrong notes ). So therefore we also added a Gaussian noise to a few notes in the music. The expected value of the noise is 0 and the standard deviation is 1 (actually the noise is a standard normal distribution). We moved the note along the y axis by the integer value of the noise added to it.
+\end{itemize}
 
 \section{folyt}
 
@@ -434,15 +503,5 @@ size to \verb+small+ (9 point) when listing the references. {\bf
 
 \small
 
-\begin{thebibliography}{9}
-	\label{sec:bibliography}
-	
-	\bibitem{maestro} Curtis Hawthorne, Andriy Stasyuk, Adam Roberts, Ian Simon, Cheng-Zhi Anna Huang,
-	Sander Dieleman, Erich Elsen, Jesse Engel, and Douglas Eck. \emph{Enabling
-		Factorized Piano Music Modeling and Generation with the MAESTRO Dataset.}, \url{https://arxiv.org/abs/1810.12247} In International Conference on Learning Representations, 2019. 
-	
-	\bibitem{hilbert} Grant Sanderson (3Blue1Brown), \emph{Hilbert's Curve: Is infinite math useful?}, \url{https://www.youtube.com/watch?v=3s7h2MHQtxc}
-	
-\end{thebibliography}
 
 \end{document}
