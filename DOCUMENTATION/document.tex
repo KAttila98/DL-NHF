@@ -113,6 +113,7 @@ Our data has the following main features:
 Further details at midicsv’s website~\footnote{MIDICSV: Convert MIDI File to and from CSV - Fourmilab. \url{https://www.fourmilab.ch/webtools/midicsv/}}
 
 \section{Data preprocessing}
+\label{sec:prepoc}
 Here we only explain the main steps and ideas of our preprocessing, because we include a well-commented source code, that produces our actual training (70\%), validation (20\%) and test (10\%) data.
 
 \subsection{First approach - using the midi files}
@@ -220,6 +221,120 @@ The third approach was using WGAN GF found in paper~\cite{}. This uses a differe
 	\caption{WGAN GF generated output.}
 	\label{fig:wgangf}
 \end{figure}
+
+\section{Long Short Term Memory (LSTM)}
+
+As an alternative approach we tried to generate music using sequential recurrent architectures. We chose LSTM networks as the seed of this architecture. Long Short Term Memory networks are a special kind of RNN, capable of learning long-term dependencies. 
+LSTMs are explicitly designed to avoid the long-term dependency problem. Remembering information for long periods of time is practically their default behavior, not something they struggle to learn. It was also a very promissing solution since in music generation it is very important to remember the long-term dependencies in the played music. The key to LSTMs is the cell state ($c$), runs straight down the entire chain, with only some minor linear interactions. It’s very easy for information to just flow along it unchanged (provides ability of remembering long-term dependencies). In addition an LSTM has three gates: input, output, forget gate, to protect and control the cell state. The structure of an LSTM cell can be seen on figure \ref{fig:lstmcell}
+
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\linewidth]{LSTMcell.png}
+	\caption{Structure of an LSTM cell.}
+	\label{fig:lstmcell}
+\end{figure}
+
+\subsection{Data generator}
+
+Since had so many images that couldn't fit in memory we had to use a data generator to read images "batch-by-batch" into the memory. This generator is also practical becaouse it can easily produce fix length data sequences from the images, which is necessary if we want to train an LSTM. For the different LSTM architectures this generator was able to create data sequences with a shape of $[(batch, in\_seq, dim), (batch, out\_seq, dim)]$, where $in\_seq$ and $out\_seq$ are respectively the size of the input and output sequences, $dim$ is the dimension of a data point at one time stamp.  
+
+\subsection{Training the basic LSTM model}
+
+At first we tried to train a sequential model with only one LSTM layer with 128 neurons and with a Fully connected layer attached to its output. The structure of this model can be seen on figure \ref{fig:basicLSTMmodel}. 
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=0.8\linewidth]{basicLSTMmodel.png}
+	\caption{Basic model with one LSTM layer.}
+	\label{fig:basicLSTMmodel}
+\end{figure}
+
+The output is a vector corresponding to one column in the generated image (that's why the size of this vector is 88, which is the heigth of the image). 
+
+\subsubsection{Teacher forcing}
+Teacher forcing is a technique applied in the training process of a recurrent neural network where the target data (the ground truth) is passed as the next input to the RNN independent on what was the network's previous prediction. 
+Using this method during the training we passed to LSTM 100 columns of an image as input data sequence and we expected to get the next column of the image as the predicted output. 
+As testing procedure we gave a seed as the input of the LSTM (a 100 wide data sequence from the real images) and the LSTM generated the next few columns/time stamps of the music.
+We tried to train this model on the dataset created by the first encoding presented in the section \ref{sec:prepoc}. This encoding was too sparse for this LSTM, it learned quickly to generate totally black images without painting any colour pixels onto it. 
+
+After training it on the dataset created by the second encoding process (using Teacher forcing) the results started to become a bit different from the first training. However it generated noisy images (as the one presented on figure \ref{fig:LSTMresult-1}). The first half of the image is the seed and the second (noisy) part is the generated part. 
+
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\linewidth]{LSTMresult1.png}
+	\caption{Result using Teacher forcing on basic LSTM.}
+	\label{fig:LSTMresult-1}
+\end{figure}
+
+\subsubsection{Custom loss function}
+
+At the basic LSTM model we used Mean-Squared Error as loss function, but since that model generated very noise images we considered creating a custom loss function which is able to reduce the noise on the output. 
+
+Each value stored in pixel channels are real numbers from the [0, 1] intervall. That is $y\_true$ the expected output is also in this range. In this case: 
+
+\begin{gather}
+\lim_{x\to\infty} \sqrt[x]{y\_true} = 1, \text{for every $y\_true > 0$ value}
+\end{gather}
+
+Now let's consider the following loss function: 
+\begin{gather}
+	C(y) = \lim_{x\to\infty} \frac{1}{M}\sum_{i = 0}^{M} \alpha(y_i - \sqrt[x]{y\_true_i})^{2}\sqrt[x]{y\_true_i} + \beta(y_i - \sqrt[x]{y\_true_i})^{2}(1 - \sqrt[x]{y\_true_i}), \\
+	\text{where $M$ is the number of datapoints}
+\end{gather}
+
+It can be seen that by adjusting the $\alpha$ and $\beta$ parameters we can influence how the model punishes the following two cases: 
+\begin{itemize}
+	\item $y\_true$ is close to 1 and $y$ is close to zero (this can be influenced by setting $\alpha$)
+	\item $y\_true$ is 0 and $y$ is close to one (this can be influenced by setting $\beta$)
+\end{itemize}
+
+With $\alpha = 1.5$ and $\beta = 0.8$ we got the result presented on figure \ref{fig:LSTMresult-2}
+
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\linewidth]{LSTMresult2.png}
+	\caption{Result using Teacher forcing on LSTM with custom loss.}
+	\label{fig:LSTMresult-2}
+\end{figure}
+
+We noticed that after applying our custom loss function the noise along y axis disappeared, the network learned to continue the music in the same note interval as it was in the seed, it doesn't generate too high or two low notes. But also it can be seen that the network still doesn't know when to stop playing a specific note (the pixel intensity fades away along x axis instead separating notes by black pixels) 
+
+As a possible solution to this problem we tried to use the encoder-decoder based Seq2seq LSTM architecture and we stopped using Teacher forcing during the training process. 
+
+\subsection{Seq2seq LSTM}
+
+Seq2seq models are used to generate output with various length from variable length input data sequence. In these models usually there is an encoder RNN which creates an interpretation of the input sequence and passes it to the decoder network, which also has its own input besides the information got from encoder. The output of the decoder will be the generated data. The structure of a Seq2seq model can be seen on figure \ref{fig:seq2seqmodel}
+
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\linewidth]{seq2seqmodel.png}
+	\caption{Seq2seq model structure}
+	\label{fig:seq2seqmodel}
+\end{figure}
+
+We applied LSTM cells as the seed of this seq2seq model. Instead of using keras's built-in Sequential model, we used Functional model so we could realize the generation of variable output sequence. The structure of our custom built seq2seg model can be seen on figure \ref{fig:seq2seqsummary}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\linewidth]{seq2seqsummary.png}
+	\caption{Seq2seq model summary}
+	\label{fig:seq2seqsummary}
+\end{figure}
+In both the encoder and decoder network we put an LSTMCell into an RNN layer. In case of the encoder the number of unfolded time steps during training are equal to the length of input data sequence. Similarly in case of the decoder the number of unfolded time steps are equal to the length of output sequence.
+On of the advantages of this model is that it can learn to predict multiple future output in contrast of Teacher forcing method which was trained to predict only one column of the input image using the previous columns. 
+We trained this model to generate the next 10 and 100 columns (time steps) of the music based on the previous 100 columns (which corresponds to approximatelly 5 seconds of music). The results can be seen on figure \ref{fig:seq2seqresult1}.
+
+\begin{figure}[!htb]
+	\centering
+	\caption{Predicting 100 columns}{
+		\includegraphics[width=0.48\linewidth]{seq2seqresult1.png}}
+	\label{fig:seq2seqresult1}
+\end{figure}
+
+The played notes are separated by black lines, which is a good sign: the model learned to distinguish different pitches. But the "white" lines are fading away here also, which means that the model couldn't learn the possible discrete values of the encoding. 
+
+To resolve this problem we considered transforming this into a kind of classification problem: the network needs to predict the class of each pixel of the next column of the image: is it a "silent" (black), "note started" (125/255 intensity gray) or "note sustained" (white) pixel. This classification problem can be realized with a categorical cross entropy loss function and softmax activations at the output fully connected layers. 
+
+Another possible direction for further researches can be using bi-directional LSTM cells instead of basic LSTM-s. 
+
 
 \section{Submission of papers to NIPS 2016}
 
