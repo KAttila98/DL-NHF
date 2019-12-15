@@ -1,10 +1,10 @@
 \section{Style transformation using autoencoder}
-As the project evolved we also wanted to achieve the style transformation of songs. For this purpose we created an autoencoder, that uses the Hilbert curve data preprocessing method. The idea was that if we teach our network with piano music only, it would learn how to restore piano music from the bottleneck. Our expectation was that after the learning is complete, if we use the autoencoder on non piano based music (in our case guitar) the network would transform the non piano input to piano music, since it only knows how to restore waves/amplitudes specific only to pianos. This was more or less achieved as you will possibly hear in our presentation, we believe that by fine-tuning the network (increase complexity while decreasing the bottleneck) it might be able to produce real, comfortable to listen to, piano transformed music.
+As the project evolved we also wanted to achieve the style transformation of songs. For this purpose we created an autoencoder, that uses the Hilbert curve~\cite{hilbert} data preprocessing method. The idea was that if we teach our network with piano music only, it would learn how to restore piano music from the bottleneck. Our expectation was that after the learning is complete, if we use the autoencoder on non piano based music (in our case guitar) the network would transform the non piano input to piano music, since it only knows how to restore waves/amplitudes specific only to pianos. This was more or less achieved as you will possibly hear in our presentation, we believe that by fine-tuning the network (increase complexity while decreasing the bottleneck) it might be able to produce real, comfortable to listen to, piano transformed music.
 
 \ref{fig:auto}
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=\linewidth]{auto_arch.png}
+	\includegraphics[width=0.7\linewidth]{auto_arch.png}
 	\caption{Autoencoder architecture.}
 	\label{fig:auto}
 \end{figure}

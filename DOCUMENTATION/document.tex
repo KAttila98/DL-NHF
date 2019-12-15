@@ -94,7 +94,7 @@
 
 \section{Problem summary}
 \label{sec:summary}
-Our idea was to convert our music data into pictures and then use some kind of neural network to produce similar pictures. Then we would convert our generated images back to music format and rate the quality. Originally we hoped we could use different styles of music to use as an input for our model and then it would generate a similar music but in a different style, but later we found this to be much more difficult. We will discuss this later in section~\ref{}.
+Our idea was to convert our music data into pictures and then use some kind of neural network to produce similar pictures. Then we would convert our generated images back to music format and rate the quality.
 
 \section{Data acquisition, description}
 \label{sec:data}
@@ -129,17 +129,17 @@ Here we only explain the main steps and ideas of our preprocessing, because we i
 		
 		\begin{figure}[!htb]
 			\centering
-			\includegraphics[width=\linewidth]{dframe.png}
+			\includegraphics[width=0.5\linewidth]{dframe.png}
 			\caption{Pandas dataframe containing midi events.}
 			\label{fig:dframe}
 		\end{figure}
 		\item The time\_elapsed column contains the same Time value as it is in the original .midi file. This column will help us to determine the starting and ending pixel of the note appearing on the generated image.
 		\item We created image files, where the pitch is representsand on the y axis and the time on the x axis (we created images with size of 88x200 pixels storing approximatelly 10 seconds long pieces of music). We used three different coding methods to compare their performance: 
 		\begin{itemize}
-			\item In the first method we used all the 4 channels of a pixel to store different infromations about every note: its length, velocity, which instrument played that note and finally the current tempo. An example of this encoding can be seen on figure \ref{fig:encoded-1}. This encoding is very rare, since only the starting of notes are presented on these images, because the length of each note is stored in R channel. 
+			\item In the first method we used all the 4 channels of a pixel to store different infromations about every note: its length, velocity, which instrument played that note and finally the current tempo. An example of this encoding can be seen on figure \ref{fig:encoded-1}. This encoding is very sparse, since only the starting of notes are presented on these images, because the length of each note is stored in R channel. 
 			\begin{figure}[!htb]
 				\centering
-				\includegraphics[width=\linewidth]{encode1.png}
+				\includegraphics[width=0.8\linewidth]{encode1.png}
 				\caption{Encoding number 1.}
 				\label{fig:encoded-1}
 			\end{figure}
@@ -152,14 +152,14 @@ Here we only explain the main steps and ideas of our preprocessing, because we i
 				\end{gather}
 				\begin{figure}[!htb]
 					\centering
-					\includegraphics[width=\linewidth]{encode2.png}
+					\includegraphics[width=0.8\linewidth]{encode2.png}
 					\caption{Encoding number 2.}
 					\label{fig:encoded-2}
 				\end{figure}
 			\item The third encoding is a one-channeled version of the second one, where we doesn't store the velocity and instrument. This encoding was made only for testing the architecture with smaller dimensional inputs. This encoding is presented on figure \ref{fig:encoded-3}
 				\begin{figure}[!htb]
 					\centering
-					\includegraphics[width=\linewidth]{encode3.png}
+					\includegraphics[width=0.8\linewidth]{encode3.png}
 					\caption{Encoding number 3.}
 					\label{fig:encoded-3}
 				\end{figure}
@@ -177,7 +177,7 @@ Here we only explain the main steps and ideas of our preprocessing, because we i
 		\text{where division is the same division which can be found in the MIDI header message} \nonumber
 		\end{gather}
 	
-	Using the  \textbf{midifile.addNote(track, channel, note, time, duration, velocity)} function we could add notes easily to our midi files. \\ 
+	Using the \textbf{midifile.addNote(track, channel, note, time, duration, velocity)} function we could add notes easily to our midi files. \\ 
 	
 	The python code for the decoder can be found in \textbf{ImgToMidi.ipynb} notebook.
 	
@@ -189,44 +189,40 @@ Here we only explain the main steps and ideas of our preprocessing, because we i
 
 As we mentioned we used midi files collected in the MAESTRO dataset, but to widen our datas at our disposal we considered using two types of data augmentation methods: 
 \begin{itemize}
-	\item \textbf{Transposing music: } Before generating images from audio files we used an instrument called MIDICSV~\footnote{MIDICSV: Convert MIDI File to and from CSV - Fourmilab. \url{https://www.fourmilab.ch/webtools/midicsv/}}, which beside converting midi files to csv can also transpose music (shifting the whole melody to another key). So we could produce different (shifted along $Y$ axis) images from the same MIDI file.
+	\item \textbf{Transposing music: } Before generating images from audio files we used an instrument called MIDICSV, which beside converting midi files to csv can also transpose music (shifting the whole melody to another key). So we could produce different (shifted along $Y$ axis) images from the same MIDI file.
 	
 	\item \textbf{Adding noise to music: } In the real life it is also possible that a musician makes mistakes while playing ( for example playes the wrong notes ). So therefore we also added a Gaussian noise to a few notes in the music. The expected value of the noise is 0 and the standard deviation is 1 (actually the noise is a standard normal distribution). We moved the note along the y axis by the integer value of the noise added to it.
 \end{itemize}
 
-\section{Network Architectures}
-\label{sec:networksarch}
+\section{Generative Adversarial Network as a generator}
+\label{sec:gan}
 
-\subsection{Generative Adversarial Network (GAN)}
-\label{sec;gan}
-
-In our first attempt to generate music using images we tried to use some type of GAN network. This type of architechture uses 2 neural nets to work against each other in an adversarial manner. The first network is the generator takes noise as input and tries to generate a new image from it. The second network is the discriminator. The discriminators job is to learn the dataset and try to differentiate between the generated and the real images. Using the discriminators output as a metric for the generator to become better. The 2 networks should be trained after one another but not simultaneously. Since these networks take a long time to train and optimize we choose an off the shelf model. We used the GAN models found in Erik Linder-Norén's repository~\cite{} as reference. 
-\subsubsection{Different GAN approaches.}
-We tried to use the simple GAN model with the dataset mentioned in section~\ref{sec:data}. We didn't have much luck with this, the architechture seemed too simple to learn from our sparse dataset. Also this type of GAN is using Dense layers in the generator network, wich is not optimal to learn the structure of an image. The output was mostly noise with not much resemblance to the original dataset. 
+In our first attempt to generate music using images we tried to use some type of GAN~\cite{gan} network. This type of architechture uses 2 neural nets to work against each other in an adversarial manner. The first network is the generator takes noise as input and tries to generate a new image from it. The second network is the discriminator. The discriminators job is to learn the dataset and try to differentiate between the generated and the real images. Using the discriminators output as a metric for the generator to become better. The 2 networks should be trained after one another but not simultaneously. Since these networks take a long time to train and optimize we choose an off the shelf model. We used the GAN models found in Erik Linder-Norén's repository~\cite{eriklindernoren} as reference. 
+\subsection{Different GAN approaches.}
+We tried to use the simple GAN model with the dataset mentioned in section~\ref{sec:data}. We didn't have much luck with this, the architechture seemed too simple to learn from our sparse dataset. Also this type of GAN is using Dense layers in the generator network, wich is not optimal to learn the structure of an image. The output was mostly noise with not much resemblance to the original dataset, shown in figure~\ref{fig:gan}.
 \begin{figure}[!htb]
 	\centering
+	\includegraphics[width=0.7\linewidth]{gan.png}
 	\caption{GAN generated output}
 	\label{fig:gan}
 \end{figure}
-\section{DCGAN}
-To compensate for the first models problems we settled on the DCGAN variant of the network. This type uses Deep Convolutional layers for both the generator and the discrimintator network. The idea was that convolution layers use a matrix of pixels as an input and it can learn the structure of an image much better. During the training this technique did work, however the generated outputs background was mostly gray and our images had black background. This made the discriminators job too easy and the loss didn't really converge to the expected values.
+\subsection{DCGAN}
+To compensate for the first models problems we settled on the DCGAN~\cite{dcgan} variant of the network. This type uses Deep Convolutional layers for both the generator and the discrimintator network. The idea was that convolution layers use a matrix of pixels as an input and it can learn the structure of an image much better. During the training this technique did work, however the generated outputs background was mostly gray and our images had black background, it can bee seen in figure~\ref{fig:dcgan}. This made the discriminators job too easy and the loss didn't really converge to the expected values.
 \begin{figure}[!htb]
 	\centering
-	\includegraphics[width=\linewidth]{dcgan.png}
+	\includegraphics[width=0.7\linewidth]{dcgan.png}
 	\caption{DCGAN generated output.}
 	\label{fig:dcgan}
 \end{figure}
-\section{WGAN GF}
-The third approach was using WGAN GF found in paper~\cite{}. This uses a different method to calculate the error made by the generator network. This method seemed the most promising as the generated output started to look like the expected from around 2000 epochs. We let the network overfit our dataset so it would be as close to the original as possible. The output of the network can be seen in figure~\ref{fig:wgangf}.
+\subsection{WGAN GP}
+The third approach was using WGAN GP found in paper~\cite{wgangpg}. This uses a different method to calculate the error made by the generator network. This method seemed the most promising as the generated output started to look like the expected from around 2000 epochs. We let the network overfit our dataset so it would be as close to the original as possible. The output of the network can be seen in figure~\ref{fig:wgangp}.
 \begin{figure}[!htb]
 	\centering
-	\includegraphics[width=\linewidth]{wgangf.png}
-	\caption{WGAN GF generated output.}
-	\label{fig:wgangf}
+	\includegraphics[width=0.7\linewidth]{wgangp.png}
+	\caption{WGAN GP generated output.}
+	\label{fig:wgangp}
 \end{figure}
-
 \input{Auto.tex}
-
 \section{Long Short Term Memory (LSTM)}
 
 As an alternative approach we tried to generate music using sequential recurrent architectures. We chose LSTM networks as the seed of this architecture. Long Short Term Memory networks are a special kind of RNN, capable of learning long-term dependencies. 
@@ -234,7 +230,7 @@ LSTMs are explicitly designed to avoid the long-term dependency problem. Remembe
 
 \begin{figure}[!htb]
 	\centering
-	\includegraphics[width=\linewidth]{LSTMcell.png}
+	\includegraphics[width=0.7\linewidth]{LSTMcell.png}
 	\caption{Structure of an LSTM cell.}
 	\label{fig:lstmcell}
 \end{figure}
@@ -248,7 +244,7 @@ Since had so many images that couldn't fit in memory we had to use a data genera
 At first we tried to train a sequential model with only one LSTM layer with 128 neurons and with a Fully connected layer attached to its output. The structure of this model can be seen on figure \ref{fig:basicLSTMmodel}. 
 \begin{figure}[!htb]
 	\centering
-	\includegraphics[width=0.8\linewidth]{basicLSTMmodel.png}
+	\includegraphics[width=0.7\linewidth]{basicLSTMmodel.png}
 	\caption{Basic model with one LSTM layer.}
 	\label{fig:basicLSTMmodel}
 \end{figure}
@@ -265,7 +261,7 @@ After training it on the dataset created by the second encoding process (using T
 
 \begin{figure}[!htb]
 	\centering
-	\includegraphics[width=\linewidth]{LSTMresult1.png}
+	\includegraphics[width=0.8\linewidth]{LSTMresult1.png}
 	\caption{Result using Teacher forcing on basic LSTM.}
 	\label{fig:LSTMresult-1}
 \end{figure}
@@ -296,7 +292,7 @@ With $\alpha = 1.5$ and $\beta = 0.8$ we got the result presented on figure \ref
 
 \begin{figure}[!htb]
 	\centering
-	\includegraphics[width=\linewidth]{LSTMresult2.png}
+	\includegraphics[width=0.8\linewidth]{LSTMresult2.png}
 	\caption{Result using Teacher forcing on LSTM with custom loss.}
 	\label{fig:LSTMresult-2}
 \end{figure}
@@ -311,7 +307,7 @@ Seq2seq models are used to generate output with various length from variable len
 
 \begin{figure}[!htb]
 	\centering
-	\includegraphics[width=\linewidth]{seq2seqmodel.png}
+	\includegraphics[width=0.8\linewidth]{seq2seqmodel.png}
 	\caption{Seq2seq model structure}
 	\label{fig:seq2seqmodel}
 \end{figure}
@@ -319,7 +315,7 @@ Seq2seq models are used to generate output with various length from variable len
 We applied LSTM cells as the seed of this seq2seq model. Instead of using keras's built-in Sequential model, we used Functional model so we could realize the generation of variable output sequence. The structure of our custom built seq2seg model can be seen on figure \ref{fig:seq2seqsummary}
 \begin{figure}[!htb]
 	\centering
-	\includegraphics[width=\linewidth]{seq2seqsummary.png}
+	\includegraphics[width=0.8\linewidth]{seq2seqsummary.png}
 	\caption{Seq2seq model summary}
 	\label{fig:seq2seqsummary}
 \end{figure}
@@ -340,28 +336,27 @@ To resolve this problem we considered transforming this into a kind of classific
 
 Another possible direction for further researches can be using bi-directional LSTM cells instead of basic LSTM-s. 
 
-\subsubsection*{Acknowledgments}
-
-Use unnumbered third level headings for the acknowledgments. All
-acknowledgments go at the end of the paper. Do not include
-acknowledgments in the anonymized submission, only in the final paper.
-
-\section*{References}
-
-References follow the acknowledgments. Use unnumbered first-level
-heading for the references. Any choice of citation style is acceptable
-as long as you are consistent. It is permissible to reduce the font
-size to \verb+small+ (9 point) when listing the references. {\bf
-  Remember that you can use a ninth page as long as it contains
-  \emph{only} cited references.}
-\medskip
-
 \small
-
 \newpage
 
-\tableofcontents
-%\spacing{1.5}
-\newpage
-
+\begin{thebibliography}{bibliography}
+	\bibitem{maestro} 
+	Curtis Hawthorne, Andriy Stasyuk, Adam Roberts, Ian Simon, Cheng-Zhi Anna Huang, Sander Dieleman, Erich Elsen, Jesse Engel, and Douglas Eck, \emph{Enabling Factorized Piano Music Modeling and Generation with the MAESTRO Dataset},In International Conference on Learning Representations, 2019, \\ \url{https://arxiv.org/abs/1810.12247}
+	
+	\bibitem{hilbert}Grant Sanderson, \emph{Hilbert's Curve: Is infinite math useful?},\\ \url{https://www.youtube.com/watch?v=3s7h2MHQtxc\&t}
+	
+	\bibitem{eriklindernoren} Erik Linder-Norén, \emph{Keras-GAN}, \\
+	\url{https://github.com/eriklindernoren/Keras-GAN}
+	
+	\bibitem{gan} Ian J. Goodfellow, Jean Pouget-Abadie, Mehdi Mirza, Bing Xu, David Warde-Farley, Sherjil Ozair, Aaron Courville, Yoshua Bengio, \emph{Generative Adversarial Networks
+	}, \\
+	\url{https://arxiv.org/abs/1406.2661}
+	
+	\bibitem{dcgan} Alec Radford, Luke Metz, Soumith Chintala, \emph{Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks
+	}, \\
+	\url{https://arxiv.org/abs/1511.06434}
+	
+	\bibitem{wgangp}Ishaan Gulrajani, Faruk Ahmed, Martin Arjovsky, Vincent Dumoulin, Aaron Courville, \emph{Improved Training of Wasserstein GANs}, \\
+	\url{https://arxiv.org/abs/1704.00028}
+\end{thebibliography}
 \end{document}
